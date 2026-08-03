@@ -1,0 +1,51 @@
+{
+  "sets": [
+    {
+      "id": "can-action",
+      "name": "CAN ACTION",
+      "groups": [
+        ["SAM", "TIM", "PAM", "DAD", "MOM", "BOB", "DAN", "PAT"],
+        ["CAN"],
+        ["DIG", "HOP", "RUN", "SIT", "JUMP", "HELP", "LIFT", "REST", "TOSS", "BUMP"]
+      ]
+    },
+    {
+      "id": "has-thing",
+      "name": "HAS THING",
+      "groups": [
+        ["SAM", "TIM", "PAM", "DAD", "MOM", "BOB"],
+        ["HAS"],
+        ["JAM", "MILK", "MAP", "CAP", "BAG", "LAMP", "MASK", "BELT"]
+      ]
+    },
+    {
+      "id": "got-thing",
+      "name": "GOT THING",
+      "groups": [
+        ["SAM", "TIM", "PAM", "DAD", "MOM", "BOB"],
+        ["GOT"],
+        ["JAM", "MILK", "MAP", "CAP", "BAG", "LAMP", "MASK", "BELT"]
+      ]
+    },
+    {
+      "id": "can-action-object",
+      "name": "CAN ACTION OBJECT",
+      "groups": [
+        ["SAM", "TIM", "PAM", "DAD", "MOM", "BOB"],
+        ["CAN"],
+        ["GET", "GRAB", "LIFT", "TOSS"],
+        ["BAG", "MAP", "CAP", "JAM"]
+      ]
+    },
+    {
+      "id": "has-location",
+      "name": "HAS LOCATION",
+      "groups": [
+        ["SAM", "TIM", "PAM", "DAD", "MOM", "BOB"],
+        ["HAS"],
+        ["A"],
+        ["MAP", "CAP", "BAG"]
+      ]
+    }
+  ]
+}
