@@ -78,7 +78,7 @@ When enabled, the app speaks:
 | Input | Action |
 | --- | --- |
 | Short tap / click / Space | Next word (or next letter if already in letter mode). After the last word, returns to the full sentence. |
-| Long press / hold Space | In word view, start or advance letter spotlight (dimmed word, active letter high contrast). Ignored in sentence view. After the last letter, returns to a normal word. |
+| Long press / hold Space / Right arrow | In word view, start or advance letter spotlight (dimmed word, active letter high contrast). Ignored in sentence view. After the last letter, returns to a normal word. |
 | Swipe right → left / Enter | New random sentence |
 | Swipe left → right / Left arrow | Previous word (from the first word, back to the full sentence) |
 

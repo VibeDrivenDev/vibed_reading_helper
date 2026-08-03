@@ -367,6 +367,12 @@
     if (event.code === "ArrowLeft") {
       event.preventDefault();
       previousWord();
+      return;
+    }
+
+    if (event.code === "ArrowRight") {
+      event.preventDefault();
+      advanceLetterHighlight();
     }
   }
 
@@ -388,6 +394,11 @@
 
   function onPointerDown(event) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
+
+    // Blocks iOS text-selection loupe / callout on long press.
+    if (event.pointerType === "touch") {
+      event.preventDefault();
+    }
 
     touchStart = {
       x: event.clientX,
@@ -509,10 +520,17 @@
   }
 
   async function init() {
-    display.addEventListener("pointerdown", onPointerDown);
+    display.addEventListener("pointerdown", onPointerDown, { passive: false });
     display.addEventListener("pointermove", onPointerMove);
     display.addEventListener("pointerup", onPointerUp);
     display.addEventListener("pointercancel", onPointerCancel);
+    // iOS still keys long-press selection off touchstart; must be non-passive.
+    display.addEventListener("touchstart", preventGestureDefaults, {
+      passive: false,
+    });
+    display.addEventListener("touchmove", preventGestureDefaults, {
+      passive: false,
+    });
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("resize", function () {
@@ -525,6 +543,7 @@
       passive: false,
     });
     document.addEventListener("contextmenu", preventGestureDefaults);
+    document.addEventListener("selectstart", preventGestureDefaults);
 
     await loadAudioConfig();
 
