@@ -1,9 +1,10 @@
 (function () {
   "use strict";
 
-  const DOUBLE_TAP_MS = 300;
-  const SWIPE_MIN_DX = 60;
-  const SWIPE_MAX_DY_RATIO = 0.6;
+  const LONG_PRESS_MS = 400;
+  const SWIPE_MIN_DX = 110;
+  const SWIPE_MAX_DY_RATIO = 0.55;
+  const MOVE_CANCEL_PX = 18;
 
   const display = document.getElementById("display");
 
@@ -14,12 +15,18 @@
     mode: "sentence", // "sentence" | "word"
     wordIndex: 0,
     letterIndex: -1, // -1 = no letter highlight
+    audio: {
+      enabled: false,
+      rate: 0.85,
+    },
   };
 
-  let pendingSingleTap = null;
-  let lastTapAt = 0;
   let touchStart = null;
   let swipeConsumed = false;
+  let longPressTimer = null;
+  let longPressFired = false;
+  let spaceHoldTimer = null;
+  let spaceHoldFired = false;
 
   function pickRandomItem(list) {
     return list[Math.floor(Math.random() * list.length)];
@@ -57,27 +64,66 @@
     state.letterIndex = -1;
   }
 
+  function stopSpeech() {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+  }
+
+  function speak(text) {
+    if (!state.audio.enabled || !text) return;
+    if (!window.speechSynthesis || typeof window.SpeechSynthesisUtterance !== "function") {
+      return;
+    }
+
+    stopSpeech();
+    const utterance = new window.SpeechSynthesisUtterance(String(text));
+    utterance.rate = state.audio.rate;
+    utterance.pitch = 1;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function speakCurrentWord() {
+    speak(state.words[state.wordIndex] || "");
+  }
+
+  function speakCurrentLetter() {
+    const word = state.words[state.wordIndex] || "";
+    if (state.letterIndex < 0 || state.letterIndex >= word.length) return;
+    speak(word.charAt(state.letterIndex));
+  }
+
+  function speakSentence() {
+    speak(state.words.join(" "));
+  }
+
   function applySentence(words) {
     state.words = words;
     state.mode = "sentence";
     state.wordIndex = 0;
     clearLetterHighlight();
+    stopSpeech();
     render(true);
   }
 
   function loadNewSentence() {
-    clearPendingSingleTap();
+    clearPressTimers();
     const words = generateSentence();
     if (words.length === 0) return;
     applySentence(words);
   }
 
-  function showFullSentence() {
-    clearPendingSingleTap();
+  function showFullSentence(withSpeech) {
+    clearPressTimers();
     state.mode = "sentence";
     state.wordIndex = 0;
     clearLetterHighlight();
     render(true);
+    if (withSpeech) {
+      // Slight delay so the sentence is on screen before speech starts.
+      window.setTimeout(speakSentence, 80);
+    } else {
+      stopSpeech();
+    }
   }
 
   function advanceWord() {
@@ -89,16 +135,34 @@
       state.mode = "word";
       state.wordIndex = 0;
       render(true);
+      window.setTimeout(speakCurrentWord, 80);
       return;
     }
 
     if (state.wordIndex >= state.words.length - 1) {
-      showFullSentence();
+      showFullSentence(true);
       return;
     }
 
     state.wordIndex += 1;
     render(true);
+    window.setTimeout(speakCurrentWord, 80);
+  }
+
+  function previousWord() {
+    if (state.words.length === 0) return;
+    if (state.mode === "sentence") return;
+
+    clearLetterHighlight();
+
+    if (state.wordIndex <= 0) {
+      showFullSentence(false);
+      return;
+    }
+
+    state.wordIndex -= 1;
+    render(true);
+    window.setTimeout(speakCurrentWord, 80);
   }
 
   function advanceLetterHighlight() {
@@ -109,14 +173,29 @@
 
     if (state.letterIndex < 0) {
       state.letterIndex = 0;
-    } else if (state.letterIndex >= word.length - 1) {
-      clearLetterHighlight();
-    } else {
-      state.letterIndex += 1;
+      updateLetterHighlight();
+      speakCurrentLetter();
+      return;
     }
 
-    // Same word — only toggle highlight classes (no rebuild / re-fit).
+    if (state.letterIndex >= word.length - 1) {
+      clearLetterHighlight();
+      updateLetterHighlight();
+      speakCurrentWord();
+      return;
+    }
+
+    state.letterIndex += 1;
     updateLetterHighlight();
+    speakCurrentLetter();
+  }
+
+  function handleShortAction() {
+    if (state.mode === "word" && state.letterIndex >= 0) {
+      advanceLetterHighlight();
+      return;
+    }
+    advanceWord();
   }
 
   function fitText(span) {
@@ -179,7 +258,10 @@
     const highlighting = state.letterIndex >= 0;
     display.classList.toggle("mode-letters", highlighting);
     for (let i = 0; i < letters.length; i += 1) {
-      letters[i].classList.toggle("is-active", highlighting && i === state.letterIndex);
+      letters[i].classList.toggle(
+        "is-active",
+        highlighting && i === state.letterIndex
+      );
     }
   }
 
@@ -226,8 +308,6 @@
       return;
     }
 
-    // Fade out first while keeping the current text + size, then swap
-    // content and mode together so a full sentence never flashes at word size.
     display.classList.add("is-updating");
     display.classList.remove("is-entering");
 
@@ -239,6 +319,7 @@
   }
 
   function showError(message) {
+    stopSpeech();
     display.classList.add("error");
     display.classList.remove(
       "mode-word",
@@ -250,44 +331,58 @@
     display.textContent = message;
   }
 
-  function clearPendingSingleTap() {
-    if (pendingSingleTap !== null) {
-      window.clearTimeout(pendingSingleTap);
-      pendingSingleTap = null;
+  function clearPressTimers() {
+    if (longPressTimer !== null) {
+      window.clearTimeout(longPressTimer);
+      longPressTimer = null;
     }
-  }
-
-  function handlePrimaryAction() {
-    const now = Date.now();
-    const sinceLast = now - lastTapAt;
-    lastTapAt = now;
-
-    if (sinceLast > 0 && sinceLast < DOUBLE_TAP_MS) {
-      clearPendingSingleTap();
-      // Letter highlight only applies in word view; ignore on sentence view.
-      advanceLetterHighlight();
-      return;
+    if (spaceHoldTimer !== null) {
+      window.clearTimeout(spaceHoldTimer);
+      spaceHoldTimer = null;
     }
-
-    clearPendingSingleTap();
-    pendingSingleTap = window.setTimeout(function () {
-      pendingSingleTap = null;
-      advanceWord();
-    }, DOUBLE_TAP_MS);
   }
 
   function onKeyDown(event) {
-    if (event.repeat) return;
-
     if (event.code === "Space" || event.key === " ") {
       event.preventDefault();
-      handlePrimaryAction();
+      if (event.repeat || spaceHoldTimer !== null || spaceHoldFired) return;
+
+      spaceHoldFired = false;
+      spaceHoldTimer = window.setTimeout(function () {
+        spaceHoldTimer = null;
+        spaceHoldFired = true;
+        advanceLetterHighlight();
+      }, LONG_PRESS_MS);
       return;
     }
+
+    if (event.repeat) return;
 
     if (event.code === "Enter" || event.key === "Enter") {
       event.preventDefault();
       loadNewSentence();
+      return;
+    }
+
+    if (event.code === "ArrowLeft") {
+      event.preventDefault();
+      previousWord();
+    }
+  }
+
+  function onKeyUp(event) {
+    if (event.code !== "Space" && event.key !== " ") return;
+    event.preventDefault();
+
+    const fired = spaceHoldFired;
+    if (spaceHoldTimer !== null) {
+      window.clearTimeout(spaceHoldTimer);
+      spaceHoldTimer = null;
+    }
+    spaceHoldFired = false;
+
+    if (!fired) {
+      handleShortAction();
     }
   }
 
@@ -300,6 +395,18 @@
       id: event.pointerId,
     };
     swipeConsumed = false;
+    longPressFired = false;
+
+    if (longPressTimer !== null) {
+      window.clearTimeout(longPressTimer);
+    }
+
+    longPressTimer = window.setTimeout(function () {
+      longPressTimer = null;
+      if (!touchStart || swipeConsumed) return;
+      longPressFired = true;
+      advanceLetterHighlight();
+    }, LONG_PRESS_MS);
 
     try {
       display.setPointerCapture(event.pointerId);
@@ -313,16 +420,31 @@
 
     const dx = event.clientX - touchStart.x;
     const dy = event.clientY - touchStart.y;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
 
-    if (
-      !swipeConsumed &&
-      dx < -SWIPE_MIN_DX &&
-      Math.abs(dy) < Math.abs(dx) * SWIPE_MAX_DY_RATIO
-    ) {
-      swipeConsumed = true;
-      clearPendingSingleTap();
-      lastTapAt = 0;
+    if (absDx > MOVE_CANCEL_PX || absDy > MOVE_CANCEL_PX) {
+      if (longPressTimer !== null) {
+        window.clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    }
+
+    if (swipeConsumed) return;
+    if (absDx < SWIPE_MIN_DX) return;
+    if (absDy >= absDx * SWIPE_MAX_DY_RATIO) return;
+
+    swipeConsumed = true;
+    longPressFired = false;
+    if (longPressTimer !== null) {
+      window.clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+
+    if (dx < 0) {
       loadNewSentence();
+    } else {
+      previousWord();
     }
   }
 
@@ -330,8 +452,16 @@
     if (!touchStart || event.pointerId !== touchStart.id) return;
 
     const wasSwipe = swipeConsumed;
+    const wasLongPress = longPressFired;
+
+    if (longPressTimer !== null) {
+      window.clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+
     touchStart = null;
     swipeConsumed = false;
+    longPressFired = false;
 
     try {
       display.releasePointerCapture(event.pointerId);
@@ -339,17 +469,43 @@
       /* ignore */
     }
 
-    if (wasSwipe) return;
-    handlePrimaryAction();
+    if (wasSwipe || wasLongPress) return;
+    handleShortAction();
   }
 
   function onPointerCancel() {
+    if (longPressTimer !== null) {
+      window.clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
     touchStart = null;
     swipeConsumed = false;
+    longPressFired = false;
   }
 
   function preventGestureDefaults(event) {
     event.preventDefault();
+  }
+
+  function parseAudioConfig(raw) {
+    const audio = raw && typeof raw === "object" ? raw : {};
+    const rate = Number(audio.rate);
+    const enabled = audio.enabled;
+    return {
+      enabled: enabled === true || enabled === "true" || enabled === 1 || enabled === "1",
+      rate: Number.isFinite(rate) && rate > 0 ? Math.min(rate, 2) : 0.85,
+    };
+  }
+
+  async function loadAudioConfig() {
+    try {
+      const response = await fetch("config.json", { cache: "no-store" });
+      if (!response.ok) return;
+      const data = await response.json();
+      state.audio = parseAudioConfig(data.audio);
+    } catch (_) {
+      // Keep defaults (audio off) if config is missing.
+    }
   }
 
   async function init() {
@@ -358,6 +514,7 @@
     display.addEventListener("pointerup", onPointerUp);
     display.addEventListener("pointercancel", onPointerCancel);
     window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
     window.addEventListener("resize", function () {
       const span = display.querySelector(".text");
       if (span && !display.classList.contains("error")) {
@@ -369,12 +526,15 @@
     });
     document.addEventListener("contextmenu", preventGestureDefaults);
 
+    await loadAudioConfig();
+
     try {
       const response = await fetch("sentences.json", { cache: "no-store" });
       if (!response.ok) {
         throw new Error("Could not load sentences.json");
       }
       const data = await response.json();
+
       const rawSets = Array.isArray(data.sets) ? data.sets : [];
       state.sets = rawSets
         .map(function (set) {
