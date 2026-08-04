@@ -25,7 +25,7 @@ docker buildx build --platform linux/amd64 -t reading-helper:latest --load .
 
 ## Edit word sets
 
-Word banks live in [`public/sentences.json`](public/sentences.json). Each set has ordered groups; the app picks a set at random, then one word from each group in order to build a sentence:
+Built-in word banks live in [`public/sentences.json`](public/sentences.json) and are baked into the image. Each set has ordered groups; the app picks a set at random, then one word from each group in order to build a sentence:
 
 ```json
 {
@@ -44,7 +44,29 @@ Word banks live in [`public/sentences.json`](public/sentences.json). Each set ha
 }
 ```
 
-Example result: `SAM CAN HOP MUD`. After editing, rebuild and restart:
+Example result: `SAM CAN HOP MUD`.
+
+### Override without rebuilding
+
+Mount a replacement file at `/config/sentences.json`. With Compose, put your file at [`config/sentences.json`](config/sentences.json) (see [`config/README.md`](config/README.md)):
+
+```bash
+cp public/sentences.json config/sentences.json
+# edit config/sentences.json
+docker compose up -d
+```
+
+If `config/sentences.json` is missing, the container uses the built-in sets from the image.
+
+With plain Docker:
+
+```bash
+docker run -d -p 8080:80 \
+  -v /path/to/my-sentences.json:/config/sentences.json:ro \
+  reading-helper:latest
+```
+
+To change the baked-in default instead, edit [`public/sentences.json`](public/sentences.json) and rebuild:
 
 ```bash
 docker compose up --build
@@ -77,10 +99,10 @@ When enabled, the app speaks:
 
 | Input | Action |
 | --- | --- |
-| Short tap / click / Space | Next word (or next letter if already in letter mode). After the last word, returns to the full sentence. |
-| Long press / hold Space / Right arrow | In word view, start or advance letter spotlight (dimmed word, active letter high contrast). Ignored in sentence view. After the last letter, returns to a normal word. |
+| Short tap / click / Space | Next word (or next word/letter while in spotlight mode). After the last isolated word, returns to the full sentence. |
+| Long press / hold Space / Right arrow | In sentence view, start or advance word spotlight. In word view, start or advance letter spotlight. After the last item, returns to a normal (un-spotlighted) view. |
 | Swipe right → left / Enter | New random sentence |
-| Swipe left → right / Left arrow | Previous word (from the first word, back to the full sentence) |
+| Swipe left → right / Left arrow | Previous word (or previous spotlighted word in sentence view; from the first isolated word, back to the full sentence) |
 
 ## Local static preview (optional)
 

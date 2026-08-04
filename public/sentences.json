@@ -4,47 +4,70 @@
       "id": "can-action",
       "name": "CAN ACTION",
       "groups": [
-        ["SAM", "TIM", "PAM", "DAD", "MOM", "BOB", "DAN", "PAT"],
+        ["SAM", "TIM", "PAM", "DAD", "MOM", "BOB", "DAN", "PAT", "JEN", "KIM"],
         ["CAN"],
-        ["DIG", "HOP", "RUN", "SIT", "JUMP", "HELP", "LIFT", "REST", "TOSS", "BUMP"]
+        ["RUN", "HOP", "SIT", "JUMP", "HELP", "LIFT", "REST", "BUMP", "NAP", "SWIM", "SPIN", "TRIP", "STOP"]
       ]
     },
     {
-      "id": "has-thing",
-      "name": "HAS THING",
+      "id": "can-verb-a-animal",
+      "name": "CAN VERB A ANIMAL",
       "groups": [
-        ["SAM", "TIM", "PAM", "DAD", "MOM", "BOB"],
-        ["HAS"],
-        ["JAM", "MILK", "MAP", "CAP", "BAG", "LAMP", "MASK", "BELT"]
-      ]
-    },
-    {
-      "id": "got-thing",
-      "name": "GOT THING",
-      "groups": [
-        ["SAM", "TIM", "PAM", "DAD", "MOM", "BOB"],
-        ["GOT"],
-        ["JAM", "MILK", "MAP", "CAP", "BAG", "LAMP", "MASK", "BELT"]
-      ]
-    },
-    {
-      "id": "can-action-object",
-      "name": "CAN ACTION OBJECT",
-      "groups": [
-        ["SAM", "TIM", "PAM", "DAD", "MOM", "BOB"],
+        ["SAM", "TIM", "PAM", "RON", "TED", "MAX", "JAN", "LIZ", "NAT", "BOB"],
         ["CAN"],
-        ["GET", "GRAB", "LIFT", "TOSS"],
-        ["BAG", "MAP", "CAP", "JAM"]
+        ["PET", "HUG", "TAP", "RUB", "TUG", "PIN", "PAT", "NAB"],
+        ["A"],
+        ["CAT", "DOG", "PIG", "HEN", "BUG", "RAT", "CUB", "FOX", "BAT", "PUP", "HOG", "RAM"]
       ]
     },
     {
-      "id": "has-location",
-      "name": "HAS LOCATION",
+      "id": "has-a-object",
+      "name": "HAS A OBJECT",
       "groups": [
-        ["SAM", "TIM", "PAM", "DAD", "MOM", "BOB"],
+        ["SAM", "TIM", "PAM", "DAD", "MOM", "BOB", "DAN", "PAT", "JEN", "KIM"],
         ["HAS"],
         ["A"],
-        ["MAP", "CAP", "BAG"]
+        ["BAG", "HAT", "CUP", "BOX", "PEN", "MAT", "BIB", "FAN", "LOG", "JAR", "WEB", "KIT"]
+      ]
+    },
+    {
+      "id": "got-a-object",
+      "name": "GOT A OBJECT",
+      "groups": [
+        ["SAM", "RON", "TED", "MAX", "JAN", "LIZ", "NAT", "DAN", "PAT", "KIM"],
+        ["GOT"],
+        ["A"],
+        ["MAP", "BUN", "GUM", "HAM", "BUS", "NET", "PIN", "ROD", "SUN", "CAB", "WIG", "MOP"]
+      ]
+    },
+    {
+      "id": "can-help-name",
+      "name": "CAN HELP NAME",
+      "groups": [
+        ["SAM", "TIM", "PAM", "BOB", "DAN", "PAT", "JEN", "KIM", "RON", "TED"],
+        ["CAN"],
+        ["HELP"],
+        ["DAD", "MOM", "MAX", "JAN", "LIZ", "NAT", "SAM", "TIM", "PAM", "BOB"]
+      ]
+    },
+    {
+      "id": "can-verb-noun",
+      "name": "CAN VERB NOUN",
+      "groups": [
+        ["SAM", "TIM", "PAM", "DAD", "MOM", "BOB", "DAN", "PAT", "JEN", "KIM"],
+        ["CAN"],
+        ["DIG", "GET", "MIX", "FIX", "DUMP", "HIT"],
+        ["MUD", "JAM", "SAND", "MILK", "GAS", "TAR", "WAX"]
+      ]
+    },
+    {
+      "id": "has-my-object",
+      "name": "HAS MY OBJECT",
+      "groups": [
+        ["SAM", "TIM", "PAM", "DAD", "MOM", "BOB", "DAN", "PAT", "JEN", "KIM"],
+        ["HAS"],
+        ["MY"],
+        ["BAG", "HAT", "CUP", "BOX", "PEN", "MAT", "BIB", "FAN", "LOG", "JAR", "WEB", "KIT"]
       ]
     }
   ]

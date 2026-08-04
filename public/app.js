@@ -14,7 +14,8 @@
     lastSentenceKey: "",
     mode: "sentence", // "sentence" | "word"
     wordIndex: 0,
-    letterIndex: -1, // -1 = no letter highlight
+    letterIndex: -1, // -1 = no letter highlight (word view)
+    sentenceWordIndex: -1, // -1 = no word highlight (sentence view)
     audio: {
       enabled: false,
       rate: 0.85,
@@ -64,6 +65,15 @@
     state.letterIndex = -1;
   }
 
+  function clearSentenceWordHighlight() {
+    state.sentenceWordIndex = -1;
+  }
+
+  function clearAllHighlights() {
+    clearLetterHighlight();
+    clearSentenceWordHighlight();
+  }
+
   function stopSpeech() {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
@@ -86,6 +96,11 @@
     speak(state.words[state.wordIndex] || "");
   }
 
+  function speakSentenceWord() {
+    if (state.sentenceWordIndex < 0) return;
+    speak(state.words[state.sentenceWordIndex] || "");
+  }
+
   function speakCurrentLetter() {
     const word = state.words[state.wordIndex] || "";
     if (state.letterIndex < 0 || state.letterIndex >= word.length) return;
@@ -100,7 +115,7 @@
     state.words = words;
     state.mode = "sentence";
     state.wordIndex = 0;
-    clearLetterHighlight();
+    clearAllHighlights();
     stopSpeech();
     render(true);
   }
@@ -116,7 +131,7 @@
     clearPressTimers();
     state.mode = "sentence";
     state.wordIndex = 0;
-    clearLetterHighlight();
+    clearAllHighlights();
     render(true);
     if (withSpeech) {
       // Slight delay so the sentence is on screen before speech starts.
@@ -129,7 +144,7 @@
   function advanceWord() {
     if (state.words.length === 0) return;
 
-    clearLetterHighlight();
+    clearAllHighlights();
 
     if (state.mode === "sentence") {
       state.mode = "word";
@@ -151,7 +166,20 @@
 
   function previousWord() {
     if (state.words.length === 0) return;
-    if (state.mode === "sentence") return;
+
+    if (state.mode === "sentence") {
+      if (state.sentenceWordIndex < 0) return;
+      if (state.sentenceWordIndex <= 0) {
+        clearSentenceWordHighlight();
+        updateSentenceWordHighlight();
+        stopSpeech();
+        return;
+      }
+      state.sentenceWordIndex -= 1;
+      updateSentenceWordHighlight();
+      speakSentenceWord();
+      return;
+    }
 
     clearLetterHighlight();
 
@@ -190,7 +218,42 @@
     speakCurrentLetter();
   }
 
+  function advanceSentenceWordHighlight() {
+    if (state.mode !== "sentence") return;
+    if (state.words.length === 0) return;
+
+    if (state.sentenceWordIndex < 0) {
+      state.sentenceWordIndex = 0;
+      updateSentenceWordHighlight();
+      speakSentenceWord();
+      return;
+    }
+
+    if (state.sentenceWordIndex >= state.words.length - 1) {
+      clearSentenceWordHighlight();
+      updateSentenceWordHighlight();
+      speakSentence();
+      return;
+    }
+
+    state.sentenceWordIndex += 1;
+    updateSentenceWordHighlight();
+    speakSentenceWord();
+  }
+
+  function advanceSpotlight() {
+    if (state.mode === "sentence") {
+      advanceSentenceWordHighlight();
+      return;
+    }
+    advanceLetterHighlight();
+  }
+
   function handleShortAction() {
+    if (state.mode === "sentence" && state.sentenceWordIndex >= 0) {
+      advanceSentenceWordHighlight();
+      return;
+    }
     if (state.mode === "word" && state.letterIndex >= 0) {
       advanceLetterHighlight();
       return;
@@ -242,6 +305,20 @@
     return fragment;
   }
 
+  function buildSentenceWordNodes(words) {
+    const fragment = document.createDocumentFragment();
+    for (let i = 0; i < words.length; i += 1) {
+      if (i > 0) {
+        fragment.appendChild(document.createTextNode(" "));
+      }
+      const wordEl = document.createElement("span");
+      wordEl.className = "word";
+      wordEl.textContent = words[i];
+      fragment.appendChild(wordEl);
+    }
+    return fragment;
+  }
+
   function updateLetterHighlight() {
     const span = display.querySelector(".text");
     if (!span || state.mode !== "word") {
@@ -265,20 +342,45 @@
     }
   }
 
+  function updateSentenceWordHighlight() {
+    const span = display.querySelector(".text");
+    if (!span || state.mode !== "sentence") {
+      render(false);
+      return;
+    }
+
+    const words = span.querySelectorAll(".word");
+    if (words.length === 0) {
+      render(false);
+      return;
+    }
+
+    const highlighting = state.sentenceWordIndex >= 0;
+    display.classList.toggle("mode-sentence-words", highlighting);
+    for (let i = 0; i < words.length; i += 1) {
+      words[i].classList.toggle(
+        "is-active",
+        highlighting && i === state.sentenceWordIndex
+      );
+    }
+  }
+
   function render(animate) {
-    const text =
-      state.mode === "word"
-        ? state.words[state.wordIndex] || ""
-        : state.words.join(" ");
     const isWord = state.mode === "word";
-    const highlighting = isWord && state.letterIndex >= 0;
+    const letterHighlighting = isWord && state.letterIndex >= 0;
+    const sentenceWordHighlighting =
+      !isWord && state.sentenceWordIndex >= 0;
+    const text = isWord
+      ? state.words[state.wordIndex] || ""
+      : state.words.join(" ");
 
     display.classList.remove("error");
 
     function applyContent() {
       display.classList.toggle("mode-word", isWord);
       display.classList.toggle("mode-sentence", !isWord);
-      display.classList.toggle("mode-letters", highlighting);
+      display.classList.toggle("mode-letters", letterHighlighting);
+      display.classList.toggle("mode-sentence-words", sentenceWordHighlighting);
 
       let span = display.querySelector(".text");
       if (!span) {
@@ -286,18 +388,25 @@
         span = display.querySelector(".text");
       }
 
-      // Always use letter spans in word mode so highlight mode doesn't reflow.
+      // Always use stable child spans so highlight mode doesn't reflow.
       if (isWord) {
         span.replaceChildren(buildLetterNodes(text));
         const letters = span.querySelectorAll(".letter");
         for (let i = 0; i < letters.length; i += 1) {
           letters[i].classList.toggle(
             "is-active",
-            highlighting && i === state.letterIndex
+            letterHighlighting && i === state.letterIndex
           );
         }
       } else {
-        span.textContent = text;
+        span.replaceChildren(buildSentenceWordNodes(state.words));
+        const words = span.querySelectorAll(".word");
+        for (let i = 0; i < words.length; i += 1) {
+          words[i].classList.toggle(
+            "is-active",
+            sentenceWordHighlighting && i === state.sentenceWordIndex
+          );
+        }
       }
       fitText(span);
     }
@@ -325,6 +434,7 @@
       "mode-word",
       "mode-sentence",
       "mode-letters",
+      "mode-sentence-words",
       "is-updating",
       "is-entering"
     );
@@ -351,7 +461,7 @@
       spaceHoldTimer = window.setTimeout(function () {
         spaceHoldTimer = null;
         spaceHoldFired = true;
-        advanceLetterHighlight();
+        advanceSpotlight();
       }, LONG_PRESS_MS);
       return;
     }
@@ -372,7 +482,7 @@
 
     if (event.code === "ArrowRight") {
       event.preventDefault();
-      advanceLetterHighlight();
+      advanceSpotlight();
     }
   }
 
@@ -416,7 +526,7 @@
       longPressTimer = null;
       if (!touchStart || swipeConsumed) return;
       longPressFired = true;
-      advanceLetterHighlight();
+      advanceSpotlight();
     }, LONG_PRESS_MS);
 
     try {

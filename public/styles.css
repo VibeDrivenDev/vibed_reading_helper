@@ -99,7 +99,16 @@ body {
   color: var(--charcoal);
 }
 
-.display .letter {
+.display.mode-sentence-words .word {
+  color: var(--mid-concrete);
+}
+
+.display.mode-sentence-words .word.is-active {
+  color: var(--charcoal);
+}
+
+.display .letter,
+.display .word {
   display: inline;
 }
 

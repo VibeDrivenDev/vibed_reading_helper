@@ -8,4 +8,8 @@ services:
     environment:
       AUDIO_ENABLED: ${AUDIO_ENABLED:-false}
       AUDIO_RATE: ${AUDIO_RATE:-0.85}
+    volumes:
+      # Place a custom sentences.json in ./config to replace the built-in word sets.
+      # If the file is absent, the image default is used.
+      - ./config:/config:ro
     restart: unless-stopped
